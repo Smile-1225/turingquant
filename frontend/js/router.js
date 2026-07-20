@@ -73,19 +73,17 @@ class Router {
     }
 
     applyModuleVisibility() {
-        const userRole = App.auth.getUserRole();
+        // 所有模块始终显示在侧栏中（管理员可在后台全局禁用）
+        // 权限检查在点击时触发，游客会看到登录提示
         this.moduleVisibility.forEach(mod => {
-            const visible = mod.is_enabled && userRole <= mod.min_role;
             const navItem = document.querySelector(`.sidepanel-item[data-module="${mod.module_key}"]`);
-            if (navItem) navItem.style.display = visible ? 'flex' : 'none';
+            if (navItem) navItem.style.display = mod.is_enabled ? 'flex' : 'none';
         });
     }
 
     isModuleVisible(moduleKey) {
-        if (!App.auth.isLoggedIn) return moduleKey === 'dashboard' || moduleKey === 'future';
         const mod = this.moduleVisibility.find(m => m.module_key === moduleKey);
         if (!mod) return true;
-        if (!mod.is_enabled) return false;
-        return App.auth.getUserRole() <= mod.min_role;
+        return mod.is_enabled;
     }
 }
