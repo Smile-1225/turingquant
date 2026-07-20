@@ -104,7 +104,7 @@ const ReviewModule = {
         const dom = document.getElementById('industryChart');
         if (!dom || typeof echarts === 'undefined') return;
         if (this.industryChart) this.industryChart.dispose();
-        this.industryChart = echarts.init(dom, 'dark');
+        this.industryChart = echarts.init(dom);
 
         const combined = [...records.slice(-10), ...records.slice(0, 10).reverse()];
         this.industryChart.setOption({

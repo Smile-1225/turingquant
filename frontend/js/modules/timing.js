@@ -75,7 +75,7 @@ const TimingModule = {
         if (!chartDom || typeof echarts === 'undefined') return;
         if (this.chartInstance) this.chartInstance.dispose();
 
-        this.chartInstance = echarts.init(chartDom, 'dark');
+        this.chartInstance = echarts.init(chartDom);
         const dates = result.kline_data.map(d => d[0]);
         const kdata = result.kline_data.map(d => [d[1], d[2], d[3], d[4]]);
         const volumes = result.kline_data.map(d => d[5]);

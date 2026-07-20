@@ -59,7 +59,7 @@ const StrategyModule = {
         const dom = document.getElementById('strategyNavChart');
         if (!dom || typeof echarts === 'undefined') return;
         if (this.navChart) this.navChart.dispose();
-        this.navChart = echarts.init(dom, 'dark');
+        this.navChart = echarts.init(dom);
 
         const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#f0444f', '#06b6d4'];
         const series = strategies.filter(s => s.performance_json).map((s, i) => {
