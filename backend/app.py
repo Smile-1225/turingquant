@@ -9,7 +9,7 @@ from flask_cors import CORS
 
 from config import SECRET_KEY, SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
 from config import JWT_SECRET_KEY, JWT_ACCESS_TOKEN_EXPIRES, UPLOAD_FOLDER
-from database import init_db
+from database import init_db, seed_if_empty
 
 # 前端静态文件目录
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'frontend')
