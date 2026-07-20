@@ -1,0 +1,12 @@
+# Render.com 部署配置文件
+# 免费域名: https://turingquant.onrender.com
+services:
+  - type: web
+    name: turingquant
+    runtime: python
+    region: singapore  # 新加坡节点，中国大陆访问较快
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && gunicorn app:create_app() -w 2 -b 0.0.0.0:$PORT --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0

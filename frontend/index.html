@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图灵量化 | 智能投资决策终端</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+
+<!-- ===== TOP BAR ===== -->
+<header class="topbar">
+    <div class="topbar-left">
+        <div class="topbar-brand">
+            <div class="brand-icon">T</div>图灵量化
+        </div>
+        <div class="topbar-divider"></div>
+        <span class="topbar-title">智能投资决策终端</span>
+    </div>
+    <div class="topbar-right">
+        <div class="topbar-status">
+            <span class="dot" id="statusDot"></span>
+            <span id="statusText">检测中</span>
+        </div>
+        <span class="topbar-clock" id="topbarClock">--:--:--</span>
+
+        <!-- 未登录 -->
+        <button id="userLoginPrompt" class="topbar-btn" onclick="App.auth.showLoginModal()">
+            👤 登录 / 注册
+        </button>
+
+        <!-- 已登录 -->
+        <div id="userInfoDisplay" style="display:none;position:relative;">
+            <button class="topbar-btn" id="userMenuBtn" onclick="event.stopPropagation();document.getElementById('userDropdown').classList.toggle('show')">
+                <div class="avatar" id="headerAvatar">U</div>
+                <span id="headerUserName">用户</span>
+            </button>
+            <div class="dropdown-panel" id="userDropdown">
+                <div class="dp-header">
+                    <div class="dp-name" id="dropdownUserName">用户</div>
+                    <div class="dp-role" id="dropdownUserRole">游客</div>
+                </div>
+                <a class="dp-item" onclick="App.auth.showLoginModal()"><span>🔑</span> 修改密码</a>
+                <a class="dp-item" id="menuItemAdmin" style="display:none" onclick="App.router.navigate('admin')"><span>⚙️</span> 系统管理</a>
+                <div class="dp-divider"></div>
+                <a class="dp-item exit" id="btnLogout"><span>🚪</span> 退出登录</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- ===== MAIN STAGE ===== -->
+<div class="main-stage">
+
+<!-- ===== SIDEPANEL ===== -->
+<aside class="sidepanel" id="sidepanelNav">
+    <div class="sidepanel-group">
+        <div class="sidepanel-label">核心功能</div>
+        <div class="sidepanel-item active" data-route="dashboard" onclick="App.router.navigate('dashboard')">
+            <span class="si-icon">⊞</span><span>系统首页</span>
+        </div>
+        <div class="sidepanel-item" data-route="timing" data-module="timing" onclick="App.router.navigate('timing')">
+            <span class="si-icon">◎</span><span>择时分析</span>
+        </div>
+    </div>
+    <div class="sidepanel-group">
+        <div class="sidepanel-label">市场复盘</div>
+        <div class="sidepanel-item" data-route="review" data-module="review_ztb" onclick="App.router.navigate('review')">
+            <span class="si-icon">⇧</span><span>涨停板复盘</span>
+        </div>
+        <div class="sidepanel-item" data-route="industry-review" data-module="review_industry" onclick="App.router.navigate('industry-review')">
+            <span class="si-icon">⊡</span><span>行业复盘</span>
+        </div>
+    </div>
+    <div class="sidepanel-group">
+        <div class="sidepanel-label">交易信号</div>
+        <div class="sidepanel-item" data-route="signals" data-module="signals" onclick="App.router.navigate('signals')">
+            <span class="si-icon">↯</span><span>买卖点信号</span>
+        </div>
+        <div class="sidepanel-item" data-route="strategies" data-module="strategy_performance" onclick="App.router.navigate('strategies')">
+            <span class="si-icon">⌬</span><span>策略业绩展示</span>
+            <span class="si-badge">NEW</span>
+        </div>
+        <div class="sidepanel-item" data-route="quant-strategy" data-module="strategy_quant" onclick="App.router.navigate('quant-strategy')">
+            <span class="si-icon">⌘</span><span>量化策略</span>
+        </div>
+    </div>
+    <div class="sidepanel-spacer"></div>
+    <div class="sidepanel-group">
+        <div class="sidepanel-item" data-route="future" data-module="future" onclick="App.router.navigate('future')">
+            <span class="si-icon">⟳</span><span>更多功能</span>
+        </div>
+        <div class="sidepanel-item" data-route="admin" data-module="admin_users" onclick="App.router.navigate('admin')" id="sideAdminItem" style="display:none">
+            <span class="si-icon">⚙</span><span>系统管理</span>
+        </div>
+    </div>
+</aside>
+
+<!-- ===== WORKSPACE ===== -->
+<main class="workspace">
+
+<!-- ================================================================ -->
+<!-- PAGE: Dashboard 系统首页 -->
+<!-- ================================================================ -->
+<section class="layout-col" id="page-dashboard" style="display:contents;">
+
+    <!-- Quote Strip -->
+    <div class="panel">
+        <div class="panel-body no-padding">
+            <div class="quote-strip" id="dashboardQuoteStrip">
+                <div class="quote-item"><div class="q-name">--</div><div class="q-code">加载中</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stat Row -->
+    <div class="stat-row" id="dashboardStats">
+        <div class="stat-tile blue"><div class="st-label">策略总数</div><div class="st-value" id="statStrategyCount">--</div></div>
+        <div class="stat-tile green"><div class="st-label">今日信号</div><div class="st-value" id="statSignalCount">--</div></div>
+        <div class="stat-tile red"><div class="st-label">今日涨停</div><div class="st-value" id="statLimitUp">--</div></div>
+        <div class="stat-tile amber"><div class="st-label">市场情绪</div><div class="st-value" id="statSentiment">--</div></div>
+    </div>
+
+    <!-- Layout: Chart + Signals -->
+    <div class="layout-grid-34">
+        <!-- Hot Strategies Panel -->
+        <div class="panel layout-col" style="gap:0;">
+            <div class="panel-header">
+                <div class="panel-title"><span class="pi">⌬</span> 热门策略 TOP3</div>
+                <div class="panel-toolbar">
+                    <button class="pt-btn" onclick="App.router.navigate('strategies')">查看全部 →</button>
+                </div>
+            </div>
+            <div class="panel-body" id="dashboardStrategies" style="flex:1;">
+                <div class="spinner-wrap"><div class="spinner"></div></div>
+            </div>
+        </div>
+
+        <!-- Latest Signals Panel -->
+        <div class="panel" style="display:flex;flex-direction:column;">
+            <div class="panel-header">
+                <div class="panel-title"><span class="pi">↯</span> 最新交易信号</div>
+            </div>
+            <div class="panel-body no-padding" style="flex:1;">
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead><tr><th>代码</th><th>名称</th><th>周期</th><th>信号</th><th>价格</th></tr></thead>
+                        <tbody id="dashboardSignalsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</section>
+
+<!-- ================================================================ -->
+<!-- PAGE: Timing Analysis 择时分析 -->
+<!-- ================================================================ -->
+<section class="layout-col" id="page-timing" style="display:none;">
+
+    <!-- Control Panel -->
+    <div class="panel">
+        <div class="panel-header">
+            <div class="panel-title"><span class="pi">◎</span> 择时分析参数</div>
+            <div class="panel-toolbar">
+                <span style="font-size:11px;color:var(--text-tertiary);" id="timingStatus">就绪</span>
+                <span style="font-size:12px;font-weight:600;color:var(--text-secondary);" id="timingStockName"></span>
+            </div>
+        </div>
+        <div class="panel-body compact">
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">标的代码</label>
+                    <input type="text" id="timingStockCode" class="form-input" value="sh000001" style="width:140px;">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">分析周期</label>
+                    <div style="display:flex;gap:8px;" id="timingPeriodCheckboxes">
+                        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-secondary);cursor:pointer;">
+                            <input type="checkbox" value="30min" checked>30分
+                        </label>
+                        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-secondary);cursor:pointer;">
+                            <input type="checkbox" value="60min" checked>60分
+                        </label>
+                        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-secondary);cursor:pointer;">
+                            <input type="checkbox" value="day" checked>日线
+                        </label>
+                        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-secondary);cursor:pointer;">
+                            <input type="checkbox" value="week">周线
+                        </label>
+                    </div>
+                </div>
+                <button class="btn btn-primary" id="btnTimingAnalyze" style="align-self:flex-end;">▶ 开始分析</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Signal Summary -->
+    <div class="signal-summary-row">
+        <div class="signal-summary-card buy">
+            <div class="ss-value" id="timingBuyCount">--</div>
+            <div class="ss-label">买入信号</div>
+        </div>
+        <div class="signal-summary-card sell">
+            <div class="ss-value" id="timingSellCount">--</div>
+            <div class="ss-label">卖出信号</div>
+        </div>
+        <div class="signal-summary-card hold">
+            <div class="ss-value" id="timingHoldCount">--</div>
+            <div class="ss-label">观望信号</div>
+        </div>
+        <div class="signal-summary-card overall">
+            <div class="ss-value" id="timingOverall" style="color:var(--text-primary);">--</div>
+            <div class="ss-label">综合判断</div>
+        </div>
+    </div>
+
+    <!-- Period Detail Cards -->
+    <div class="period-cards-row" id="timingDetailCards">
+        <div class="period-signal-card"><div class="ps-period">--</div><div class="ps-signal" style="color:var(--text-tertiary);">选择标的开始分析</div></div>
+    </div>
+
+    <!-- K-line Chart -->
+    <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+        <div class="panel-header">
+            <div class="panel-title"><span class="pi">📈</span> K线图 / MACD 信号</div>
+            <div class="panel-toolbar">
+                <select class="pt-select" id="timingChartPeriod" onchange="TimingModule.switchChartPeriod()">
+                    <option value="day">日线</option><option value="60min">60分钟</option><option value="30min">30分钟</option>
+                </select>
+            </div>
+        </div>
+        <div class="panel-body no-padding" style="flex:1;">
+            <div class="chart-frame xlarge" id="timingChartContainer">
+                <div class="chart-inner" id="timingChart"></div>
+            </div>
+        </div>
+    </div>
+
+</section>
+
+<!-- ================================================================ -->
+<!-- PAGE: Limit-Up Review 涨停板复盘 -->
+<!-- ================================================================ -->
+<section class="layout-col" id="page-review" style="display:none;">
+
+    <!-- Stats -->
+    <div class="stat-row">
+        <div class="stat-tile red"><div class="st-label">涨停总数</div><div class="st-value" id="ztbTotalCount">--</div></div>
+        <div class="stat-tile blue"><div class="st-label">涨停最多板块</div><div class="st-value" style="font-size:15px;" id="ztbTopSector">--</div></div>
+        <div class="stat-tile amber"><div class="st-label">最高连板</div><div class="st-value" id="ztbMaxConsecutive">--</div></div>
+    </div>
+
+    <!-- Table Panel -->
+    <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+        <div class="panel-header">
+            <div class="panel-title"><span class="pi">⇧</span> 涨停板数据</div>
+            <div class="panel-toolbar">
+                <input type="date" id="ztbDate" class="pt-select" style="width:140px;" value="">
+                <input type="text" id="ztbSectorFilter" class="pt-select" placeholder="板块筛选" style="width:120px;">
+                <button class="pt-btn primary" id="btnRefreshZtb">刷新</button>
+            </div>
+        </div>
+        <div class="panel-body no-padding" style="flex:1;">
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead><tr><th>代码</th><th>名称</th><th>连板</th><th>首次涨停</th><th>开板</th><th>涨停原因</th><th>换手率</th><th>封单额</th><th>板块</th></tr></thead>
+                    <tbody id="ztbTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="pager" id="ztbPagination"></div>
+    </div>
+
+</section>
+
+<!-- ================================================================ -->
+<!-- PAGE: Industry Review 行业复盘 -->
+<!-- ================================================================ -->
+<section class="layout-col" id="page-industry-review" style="display:none;">
+
+    <!-- Stats -->
+    <div class="stat-row">
+        <div class="stat-tile blue"><div class="st-label">平均涨跌</div><div class="st-value" id="indAvgChange">--</div></div>
+        <div class="stat-tile green"><div class="st-label">上涨行业</div><div class="st-value" id="indUpCount">--</div></div>
+        <div class="stat-tile red"><div class="st-label">下跌行业</div><div class="st-value" id="indDownCount">--</div></div>
+        <div class="stat-tile"><div class="st-label">行业总数</div><div class="st-value" id="indTotalCount">--</div></div>
+        <div class="stat-tile green"><div class="st-label">领涨行业</div><div class="st-value" style="font-size:12px;" id="indTopGainer">--</div></div>
+        <div class="stat-tile red"><div class="st-label">领跌行业</div><div class="st-value" style="font-size:12px;" id="indTopLoser">--</div></div>
+    </div>
+
+    <!-- Chart + Table layout -->
+    <div class="layout-grid-43">
+        <!-- Chart -->
+        <div class="panel" style="display:flex;flex-direction:column;min-height:360px;">
+            <div class="panel-header">
+                <div class="panel-title"><span class="pi">⊡</span> 行业涨跌分布</div>
+            </div>
+            <div class="panel-body no-padding" style="flex:1;">
+                <div class="chart-frame large"><div class="chart-inner" id="industryChart"></div></div>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="panel" style="display:flex;flex-direction:column;">
+            <div class="panel-header">
+                <div class="panel-title"><span class="pi">⊡</span> 行业详细数据</div>
+                <div class="panel-toolbar">
+                    <input type="date" id="industryDate" class="pt-select" style="width:140px;" value="">
+                    <select id="industrySortBy" class="pt-select">
+                        <option value="change_pct">按涨跌幅</option><option value="volume">按成交量</option>
+                        <option value="amount">按成交额</option><option value="strength_index">按强弱</option>
+                        <option value="fund_flow">按资金</option>
+                    </select>
+                    <button class="pt-btn primary" id="btnRefreshIndustry">刷新</button>
+                </div>
+            </div>
+            <div class="panel-body no-padding" style="flex:1;">
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead><tr><th>行业</th><th>涨跌幅</th><th>成交量(万手)</th><th>成交额(亿)</th><th>换手率</th><th>强弱指数</th><th>资金净流入</th></tr></thead>
+                        <tbody id="industryTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</section>
+
+<!-- ================================================================ -->
+<!-- PAGE: Signals 买卖点信号 -->
+<!-- ================================================================ -->
+<section class="layout-col" id="page-signals" style="display:none;">
+    <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+        <div class="panel-header">
+            <div class="panel-title"><span class="pi">↯</span> 买卖点信号列表</div>
+            <div class="panel-toolbar">
+                <input type="text" id="signalStockFilter" class="pt-select" placeholder="搜索代码" style="width:100px;">
+                <select id="signalPeriodFilter" class="pt-select">
+                    <option value="">全部周期</option><option value="30min">30分钟</option>
+                    <option value="60min">60分钟</option><option value="day">日线</option><option value="week">周线</option>
+                </select>
+                <select id="signalTypeFilter" class="pt-select">
+                    <option value="">全部类型</option><option value="buy">买入</option>
+                    <option value="sell">卖出</option><option value="hold">持有</option>
+                </select>
+                <button class="pt-btn primary" id="btnRefreshSignals">刷新</button>
+            </div>
+        </div>
+        <div class="panel-body no-padding" style="flex:1;">
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead><tr><th>代码</th><th>名称</th><th>周期</th><th>信号类型</th><th>信号名称</th><th>价格</th><th>置信度</th><th>时间</th></tr></thead>
+                    <tbody id="signalsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="pager" id="signalsPagination"></div>
+    </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- PAGE: Strategy Performance 策略业绩展示 -->
+<!-- ================================================================ -->
+<section class="layout-col" id="page-strategies" style="display:none;">
+
+    <!-- Strategy Cards Grid -->
+    <div class="strategy-grid-pro" id="strategyCards">
+        <div class="spinner-wrap"><div class="spinner"></div></div>
+    </div>
+
+    <!-- NAV Chart -->
+    <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+        <div class="panel-header">
+            <div class="panel-title"><span class="pi">📊</span> 策略净值曲线对比</div>
+            <div class="panel-toolbar">
+                <span style="font-size:10px;color:var(--text-tertiary);">基准: 沪深300</span>
+            </div>
+        </div>
+        <div class="panel-body no-padding" style="flex:1;">
+            <div class="chart-frame xlarge"><div class="chart-inner" id="strategyNavChart"></div></div>
+        </div>
+    </div>
+
+</section>
+
+<!-- ================================================================ -->
+<!-- PAGE: Quant Strategy 量化策略 -->
+<!-- ================================================================ -->
+<section class="layout-col" id="page-quant-strategy" style="display:none;">
+    <div class="panel">
+        <div class="panel-header">
+            <div class="panel-title"><span class="pi">⌘</span> 量化策略配置</div>
+        </div>
+        <div class="panel-body" id="quantStrategyContent">
+            <div class="feature-teasers">
+                <div class="feature-card">
+                    <div class="fc-icon">🧬</div><div class="fc-name">多因子选股</div>
+                    <div class="fc-status">自定义因子权重与筛选条件</div>
+                </div>
+                <div class="feature-card">
+                    <div class="fc-icon">⚡</div><div class="fc-name">算法交易执行</div>
+                    <div class="fc-status">TWAP/VWAP 智能拆单</div>
+                </div>
+                <div class="feature-card">
+                    <div class="fc-icon">🛡️</div><div class="fc-name">智能风控</div>
+                    <div class="fc-status">动态止损 + 仓位管理</div>
+                </div>
+                <div class="feature-card">
+                    <div class="fc-icon">🔄</div><div class="fc-name">策略回测引擎</div>
+                    <div class="fc-status">历史数据回测与参数优化</div>
+                </div>
+            </div>
+            <div style="text-align:center;padding:24px;color:var(--text-tertiary);">
+                <p style="font-size:14px;margin-bottom:8px;">🚀 完整量化策略配置功能即将上线</p>
+                <p style="font-size:11px;">敬请期待因子分析、回测引擎、实盘信号集成等专业功能</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- PAGE: Future 更多功能 -->
+<!-- ================================================================ -->
+<section id="page-future" style="display:none;">
+    <div class="panel">
+        <div class="panel-header">
+            <div class="panel-title"><span class="pi">⟳</span> 更多功能 — 开发路线图</div>
+        </div>
+        <div class="panel-body">
+            <div class="feature-teasers" id="futureContent">
+                <div class="feature-card"><div class="fc-icon">🤖</div><div class="fc-name">AI智能选股</div><div class="fc-status">开发中</div></div>
+                <div class="feature-card"><div class="fc-icon">📊</div><div class="fc-name">因子分析工具</div><div class="fc-status">规划中</div></div>
+                <div class="feature-card"><div class="fc-icon">🔮</div><div class="fc-name">市场情绪预测</div><div class="fc-status">规划中</div></div>
+                <div class="feature-card"><div class="fc-icon">💹</div><div class="fc-name">算法交易引擎</div><div class="fc-status">规划中</div></div>
+                <div class="feature-card"><div class="fc-icon">📡</div><div class="fc-name">新闻舆情分析</div><div class="fc-status">规划中</div></div>
+                <div class="feature-card"><div class="fc-icon">🏦</div><div class="fc-name">龙虎榜追踪</div><div class="fc-status">规划中</div></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- PAGE: Admin 系统管理 -->
+<!-- ================================================================ -->
+<section class="layout-col" id="page-admin" style="display:none;">
+
+    <!-- Stats -->
+    <div class="stat-row">
+        <div class="stat-tile blue"><div class="st-label">总用户数</div><div class="st-value" id="adminTotalUsers">--</div></div>
+        <div class="stat-tile green"><div class="st-label">活跃用户</div><div class="st-value" id="adminActiveUsers">--</div></div>
+        <div class="stat-tile amber"><div class="st-label">策略总数</div><div class="st-value" id="adminTotalStrategies">--</div></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-bar">
+        <button class="tab active" onclick="AdminModule.switchTab('users', this)">👥 用户管理</button>
+        <button class="tab" onclick="AdminModule.switchTab('modules', this)">🔧 模块可见性配置</button>
+    </div>
+
+    <!-- Users Table -->
+    <div class="panel" id="adminTabUsers" style="flex:1;display:flex;flex-direction:column;">
+        <div class="panel-header">
+            <div class="panel-title"><span class="pi">👥</span> 用户列表</div>
+            <div class="panel-toolbar">
+                <input type="text" id="adminUserSearch" class="pt-select" placeholder="搜索用户名/手机号" style="width:160px;">
+                <button class="pt-btn primary" id="btnAdminAddUser">+ 添加用户</button>
+            </div>
+        </div>
+        <div class="panel-body no-padding" style="flex:1;">
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead><tr><th>ID</th><th>用户名</th><th>手机号</th><th>昵称</th><th>角色</th><th>状态</th><th>注册时间</th><th>操作</th></tr></thead>
+                    <tbody id="adminUsersTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="pager" id="adminUsersPagination"></div>
+    </div>
+
+    <!-- Modules Table -->
+    <div class="panel" id="adminTabModules" style="display:none;flex:1;flex-direction:column;">
+        <div class="panel-header">
+            <div class="panel-title"><span class="pi">🔧</span> 模块可见性配置</div>
+            <div class="panel-toolbar">
+                <span style="font-size:10px;color:var(--text-tertiary);">设置每个模块的最低可见角色</span>
+            </div>
+        </div>
+        <div class="panel-body no-padding" style="flex:1;">
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead><tr><th>模块标识</th><th>模块名称</th><th>最小可见角色</th><th>状态</th></tr></thead>
+                    <tbody id="adminModulesList"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</section>
+
+</main><!-- /workspace -->
+</div><!-- /main-stage -->
+</div><!-- /app-shell -->
+
+<!-- ================================================================ -->
+<!-- MODAL: Login / Register -->
+<!-- ================================================================ -->
+<div class="modal-backdrop" id="modalOverlay">
+    <div class="modal-window" id="authModal">
+        <div class="modal-titlebar">
+            <h2>账户中心</h2>
+            <button class="modal-close-btn" id="modalClose">✕</button>
+        </div>
+        <div class="modal-content">
+            <div class="tab-bar">
+                <button class="tab active" data-tab="login">登录</button>
+                <button class="tab" data-tab="register">注册</button>
+            </div>
+            <div id="tab-login">
+                <form id="loginForm" onsubmit="return false">
+                    <div class="form-group">
+                        <label class="form-label">用户名 / 手机号</label>
+                        <input type="text" id="loginUsername" class="form-input" placeholder="请输入" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">密码</label>
+                        <input type="password" id="loginPassword" class="form-input" placeholder="请输入密码" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;" id="loginSubmitBtn">登 录</button>
+                </form>
+            </div>
+            <div id="tab-register" style="display:none;">
+                <form id="registerForm" onsubmit="return false">
+                    <div class="form-group">
+                        <label class="form-label">用户名 *</label>
+                        <input type="text" id="regUsername" class="form-input" placeholder="2-50个字符" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">密码 *</label>
+                        <input type="password" id="regPassword" class="form-input" placeholder="至少6位密码" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">手机号 *</label>
+                        <input type="tel" id="regPhone" class="form-input" placeholder="11位手机号" required maxlength="11">
+                        <div class="form-hint">手机号将用于账户安全和密码找回</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;" id="registerSubmitBtn">注 册</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- MODAL: Visitor Reminder (10-minute popup) -->
+<!-- ================================================================ -->
+<div class="modal-backdrop" id="reminderOverlay">
+    <div class="modal-window" style="text-align:center;">
+        <div class="modal-titlebar">
+            <h2>🔔 访问提醒</h2>
+            <button class="modal-close-btn" onclick="App.auth.closeReminder()">✕</button>
+        </div>
+        <div class="modal-content">
+            <div style="font-size:36px;margin:10px 0;">📊</div>
+            <p style="font-size:14px;color:var(--text-secondary);margin-bottom:6px;" id="reminderMessage">
+                欢迎访问图灵量化投资决策终端！
+            </p>
+            <p style="font-size:11px;color:var(--text-tertiary);margin-bottom:18px;">
+                注册即可解锁择时分析、涨停板复盘、买卖点信号等专业量化功能
+            </p>
+            <div style="display:flex;gap:8px;justify-content:center;">
+                <button class="btn btn-primary" onclick="App.auth.closeReminder();App.auth.showRegisterModal();">立即注册</button>
+                <button class="btn btn-ghost" onclick="App.auth.closeReminder();">稍后再说</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- MODAL: Add User (Admin) -->
+<!-- ================================================================ -->
+<div class="modal-backdrop" id="adminAddUserOverlay">
+    <div class="modal-window">
+        <div class="modal-titlebar">
+            <h2>添加用户</h2>
+            <button class="modal-close-btn" id="adminAddUserClose">✕</button>
+        </div>
+        <div class="modal-content">
+            <form id="adminAddUserForm" onsubmit="return false">
+                <div class="form-group">
+                    <label class="form-label">用户名 *</label>
+                    <input type="text" id="newUsername" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">密码 *</label>
+                    <input type="password" id="newPassword" class="form-input" value="123456" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">手机号 *</label>
+                    <input type="tel" id="newPhone" class="form-input" placeholder="11位手机号" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">角色</label>
+                    <select id="newRole" class="form-select">
+                        <option value="4">C端客户</option><option value="3">B端客户</option>
+                        <option value="2">普通管理员</option><option value="1">超级管理员</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="AdminModule.closeAddUserModal()">取消</button>
+            <button class="btn btn-primary" id="btnAddUserSubmit">确认添加</button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-bar" id="toastContainer"></div>
+
+<!-- SCRIPTS -->
+<script src="js/utils.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/router.js"></script>
+<script src="js/modules/dashboard.js"></script>
+<script src="js/modules/timing.js"></script>
+<script src="js/modules/review.js"></script>
+<script src="js/modules/signals.js"></script>
+<script src="js/modules/strategy.js"></script>
+<script src="js/modules/admin.js"></script>
+<script src="js/app.js"></script>
+
+<!-- CLOCK -->
+<script>
+setInterval(()=>{
+    const n=new Date();
+    document.getElementById('topbarClock').textContent=n.toLocaleTimeString('zh-CN',{hour12:false});
+},1000);
+</script>
+</body>
+</html>
